@@ -5,10 +5,11 @@
 #include <random>
 #include <numeric>
 #include <cmath>
+#include "readFile.hpp"
 
-#define N 1E10
+#define T 1E15
 #define TMIN 1E-14
-#define MAX 2E5
+#define MAX 2E6
 
 using namespace std;
 
@@ -23,6 +24,14 @@ vector<int> randperm(size_t n) {
     return v;
 }
 
+void flip(vector<int>& state, size_t a, size_t b) {
+    while(a < b) {
+        swap(state[a], state[b]);
+        a++;
+        b--;
+    }
+}
+
 vector<int> getSuccessor(const vector<int>& state) {
     vector<int> newS(state);
 
@@ -35,41 +44,37 @@ vector<int> getSuccessor(const vector<int>& state) {
     return newS;
 }
 
-void flip(vector<int>& state, size_t a, size_t b) {
-    while(a < b) {
-        swap(state[a], state[b]);
-        a++;
-        b--;
-    }
-}
-
-size_t cooldown(size_t t, size_t i) {
-    size_t r = t;
+double cooldown(double t, size_t i) {
+    double r = t;
     if(i%100 == 0) r = t * 0.9;
     return r;
 }
 
-size_t eval(const vector<int>& state, const vector<vector<int>>& costs) {
-    size_t cost = 0;
-    for(int i = 0; costs.size()-1; ++i) {
+double eval(vector<int>& state, const vector<vector<int>>& costs) {
+    double cost = 0;
+    
+    for(int i = 0; i < state.size()-1; ++i)
         cost += costs[state[i]][state[i+1]];
-    }
+    
     cost += costs[state[state.size()-1]][state[0]];
+
     return cost;
 }
 
-pair<vector<int>, size_t> annealing(const vector<vector<int>>& nodes, size_t n, size_t t, size_t tMin, size_t max) {
+pair<vector<int>, size_t> annealing(const vector<vector<int>>& nodes, size_t n, double t, double tMin, size_t max) {
     vector<int> current = randperm(n);
     
     size_t cost = 0;
     size_t cooldownCounter = 0;
     size_t iterCounter = 1;
 
-    while( t > tMin && iterCounter < max) {
+    while(t > tMin && iterCounter < max) {
         // get successor
         vector<int> newS = getSuccessor(current);
         // get the delta, eval(successor) - eval(current)
-        size_t deltaE = eval(newS, nodes) - eval(current, nodes);
+        double evalA = eval(newS, nodes);
+        double evalB = eval(current, nodes);
+        double deltaE = evalA - evalB;
         // if the successor is better than the current then current = successor
         if(deltaE <= 0) {
             current = newS;
@@ -80,14 +85,29 @@ pair<vector<int>, size_t> annealing(const vector<vector<int>>& nodes, size_t n, 
             if(p > (double)rand() / RAND_MAX)
                 current = newS;
         }
-    }
 
+        iterCounter++;
+
+        // if(iterCounter%1000) {
+        //     cout << iterCounter << endl;
+        // }
+    }
+    cost = eval(current, nodes);
     return {current, cost};
 }
 
 int main(void) {
 
+    vector<pair<int,int>> cities = readFile("./TSPLIB/a280.tsp");
+    vector<vector<int>> nodes = getDistances(cities);
+    vector<int> optimal = getNodes("./TSPLIB/a280.opt.tour");
     
+    auto [sol, cost] = annealing(nodes, nodes.size(), T, TMIN, MAX);
+
+    cout << "Cost: " << cost << endl;
+    cout << "Best Cost: " << eval(optimal, nodes) << endl;
+
+    cout << "Finished!" << endl;
 
     return 0;
 }
