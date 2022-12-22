@@ -9,7 +9,7 @@
 
 #define T 1E15
 #define TMIN 1E-14
-#define MAX 2E6
+#define MAX 4E6
 
 using namespace std;
 
@@ -46,7 +46,7 @@ vector<int> getSuccessor(const vector<int>& state) {
 
 double cooldown(double t, size_t i) {
     double r = t;
-    if(i%100 == 0) r = t * 0.9;
+    if(i%100== 0) r = t * 0.99;
     return r;
 }
 
@@ -98,16 +98,30 @@ pair<vector<int>, size_t> annealing(const vector<vector<int>>& nodes, size_t n, 
 
 int main(void) {
 
-    vector<pair<int,int>> cities = readFile("./TSPLIB/a280.tsp");
+    // ask user for a filename
+    string filename;
+    cout << "Enter a filename: ";
+    getline(std::cin, filename);
+
+    cout << "Starting..." << endl;
+
+    vector<pair<int,int>> cities = readFile("./TSPLIB/" + filename + ".tsp");
     vector<vector<int>> nodes = getDistances(cities);
-    vector<int> optimal = getNodes("./TSPLIB/a280.opt.tour");
+    vector<int> optimal = getNodes("./TSPLIB/" + filename + ".opt.tour");
     
+    auto start = chrono::high_resolution_clock::now();    
     auto [sol, cost] = annealing(nodes, nodes.size(), T, TMIN, MAX);
+    auto end = chrono::high_resolution_clock::now();
 
     cout << "Cost: " << cost << endl;
     cout << "Best Cost: " << eval(optimal, nodes) << endl;
 
+    writeToFile(sol, filename);
+
     cout << "Finished!" << endl;
+
+    auto duration = chrono::duration_cast<chrono::seconds>(end - start);
+    cout << "Time: " << duration.count() << " seconds" << endl;
 
     return 0;
 }
