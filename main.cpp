@@ -4,11 +4,13 @@
 #include <algorithm>
 #include <random>
 #include <numeric>
-#include <cmath>
+#include <cstdlib>
+#include <map>
+#include <chrono>
 #include "readFile.hpp"
 
 #define T 1E15
-#define TMIN 1E-14
+#define TMIN 1E-20 // -14
 #define MAX 4E6
 
 using namespace std;
@@ -26,9 +28,7 @@ vector<int> randperm(size_t n) {
 
 void flip(vector<int>& state, size_t a, size_t b) {
     while(a < b) {
-        swap(state[a], state[b]);
-        a++;
-        b--;
+        swap(state[a++], state[b--]);
     }
 }
 
@@ -45,9 +45,8 @@ vector<int> getSuccessor(const vector<int>& state) {
 }
 
 double cooldown(double t, size_t i) {
-    double r = t;
-    if(i%100== 0) r = t * 0.99;
-    return r;
+    if(i%100== 0) t = t * 0.99;
+    return t;
 }
 
 double eval(vector<int>& state, const vector<vector<int>>& costs) {
@@ -87,41 +86,53 @@ pair<vector<int>, size_t> annealing(const vector<vector<int>>& nodes, size_t n, 
         }
 
         iterCounter++;
-
-        // if(iterCounter%1000) {
-        //     cout << iterCounter << endl;
-        // }
     }
     cost = eval(current, nodes);
     return {current, cost};
+}
+
+bool isValid(vector<int> state) {
+    // check if there are repeated nodes, if so then is false otherwise true
+    map<int, int> frec;    
+    for(int i = 0; i < state.size(); ++i) {
+        frec[state[i]]++;
+        if(frec[state[i]] > 1) return false;
+    }
+
+    return true;
 }
 
 int main(void) {
 
     // ask user for a filename
     string filename;
+    size_t bestCost;
     cout << "Enter a filename: ";
     getline(std::cin, filename);
 
     cout << "Starting..." << endl;
 
-    vector<pair<int,int>> cities = readFile("./TSPLIB/" + filename + ".tsp");
+    vector<pair<double, double>> cities = readFile("./TSPLIB/" + filename + ".tsp");
     vector<vector<int>> nodes = getDistances(cities);
     vector<int> optimal = getNodes("./TSPLIB/" + filename + ".opt.tour");
     
     auto start = chrono::high_resolution_clock::now();    
     auto [sol, cost] = annealing(nodes, nodes.size(), T, TMIN, MAX);
     auto end = chrono::high_resolution_clock::now();
+    bestCost = eval(optimal, nodes);
 
     cout << "Cost: " << cost << endl;
+    cout << "Valid: " << (isValid(sol) ? "True" : "False") << endl;
     cout << "Best Cost: " << eval(optimal, nodes) << endl;
-
-    writeToFile(sol, filename);
-
     cout << "Finished!" << endl;
 
     auto duration = chrono::duration_cast<chrono::seconds>(end - start);
     cout << "Time: " << duration.count() << " seconds" << endl;
 
+    size_t time = duration.count();
+    size_t aErr = abs((int)(bestCost - cost));
+    double rErr = (double)aErr / bestCost;
+
+    writeToFile(sol, filename, time, aErr, rErr);
     return 0;
 }
